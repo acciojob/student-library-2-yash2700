@@ -14,6 +14,7 @@ import java.util.List;
 @Data
 @RequiredArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 public class Author {
 
     @Id
@@ -81,13 +82,6 @@ public class Author {
         this.booksWritten = booksWritten;
     }
 
-    public Author(int id, String name, String email, int age, String country, List<Book> booksWritten) {
-        this.id = id;
-        this.name = name;
-        this.email = email;
-        this.age = age;
-        this.country = country;
-        this.booksWritten = booksWritten;
-    }
+
 }
 
