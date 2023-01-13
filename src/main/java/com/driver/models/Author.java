@@ -1,15 +1,19 @@
 package com.driver.models;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import javax.persistence.*;
 import java.util.List;
 
 @Entity
 @Data
-
+@RequiredArgsConstructor
+@NoArgsConstructor
 public class Author {
 
     @Id
@@ -27,8 +31,7 @@ public class Author {
     @JsonIgnoreProperties("author")
     private List<Book> booksWritten;
 
-    public Author() {
-    }
+
 
     public int getId() {
         return id;
