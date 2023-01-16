@@ -8,8 +8,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -35,42 +37,44 @@ public class TransactionService {
 
     public String issueBook(int cardId, int bookId) throws Exception {
         //check whether bookId and cardId already exist
-        //conditions required for successful transaction of issue book:
-        //1. book is present and available
-        // If it fails: throw new Exception("Book is either unavailable or not present");
-        //2. card is present and activated
-        // If it fails: throw new Exception("Card is invalid");
-        //3. number of books issued against the card is strictly less than max_allowed_books
-        // If it fails: throw new Exception("Book limit has reached for this card");
-        //If the transaction is successful, save the transaction to the list of transactions and return the id
-
-        //Note that the error message should match exactly in all cases
         Book book = bookRepository5.findById(bookId).get();
         Card card = cardRepository5.findById(cardId).get();
+
         Transaction transaction = new Transaction();
+
         transaction.setBook(book);
         transaction.setCard(card);
         transaction.setIssueOperation(true);
 
-        if (book == null || !book.isAvailable()) {
+
+        //conditions required for successful transaction of issue book:
+        //1. book is present and available
+        // If it fails: throw new Exception("Book is either unavailable or not present");
+        if(book == null || !book.isAvailable()){
             transaction.setTransactionStatus(TransactionStatus.FAILED);
+            bookRepository5.updateBook(book);
             transactionRepository5.save(transaction);
             throw new Exception("Book is either unavailable or not present");
         }
-
-
+        //2. card is present and activated
+        // If it fails: throw new Exception("Card is invalid");
         if(card == null || card.getCardStatus().equals(CardStatus.DEACTIVATED)){
             transaction.setTransactionStatus(TransactionStatus.FAILED);
+            bookRepository5.updateBook(book);
             transactionRepository5.save(transaction);
             throw new Exception("Card is invalid");
         }
-
-        if(card.getBooks().size() >= max_allowed_books){
+        //3. number of books issued against the card is strictly less than max_allowed_books
+        // If it fails: throw new Exception("Book limit has reached for this card");
+        if(card.getBooks().size() >= max_allowed_books) {
             transaction.setTransactionStatus(TransactionStatus.FAILED);
+            bookRepository5.updateBook(book);
             transactionRepository5.save(transaction);
             throw new Exception("Book limit has reached for this card");
         }
-        transaction.setCard(card);
+        //If the transaction is successful, save the transaction to the list of transactions and return the id
+
+        book.setCard(card);
         book.setAvailable(false);
         List<Book> bookList = card.getBooks();
         bookList.add(book);
@@ -82,52 +86,52 @@ public class TransactionService {
 
         transactionRepository5.save(transaction);
 
+        return transaction.getTransactionId();
 
-        return transaction.getTransactionId(); //return transactionId instead
+        //Note that the error message should match exactly in all cases
+
     }
 
-    public Transaction returnBook(int cardId, int bookId) throws Exception {
+    public Transaction returnBook(int cardId, int bookId) throws Exception{
 
         List<Transaction> transactions = transactionRepository5.find(cardId, bookId, TransactionStatus.SUCCESSFUL, true);
         Transaction transaction = transactions.get(transactions.size() - 1);
 
-
         //for the given transaction calculate the fine amount considering the book has been returned exactly when this function is called
         //make the book available for other users
         //make a new transaction for return book which contains the fine amount as well
-        Date transactionDate = transaction.getTransactionDate();
 
-        long issueTime = Math.abs(System.currentTimeMillis() - transactionDate.getTime());
+        Date issueDate = transaction.getTransactionDate();
 
-        long no_of_days_passed = TimeUnit.DAYS.convert(issueTime, TimeUnit.MILLISECONDS);
+        long timeIssuetime = Math.abs(System.currentTimeMillis() - issueDate.getTime());
+
+        long no_of_days_passed = TimeUnit.DAYS.convert(timeIssuetime, TimeUnit.MILLISECONDS);
 
         int fine = 0;
-        if(no_of_days_passed > getMax_allowed_days){
+        if(no_of_days_passed > getMax_allowed_days)
+        {
             fine = (int)((no_of_days_passed - getMax_allowed_days) * fine_per_day);
         }
 
-        Book book = transaction.getBook();
 
+        //update the book and its status
+        Book book = transaction.getBook();
         book.setAvailable(true);
         book.setCard(null);
-
-
-
-        //Remve that book from that card list
-
         bookRepository5.updateBook(book);
 
-        Transaction transaction1 = new Transaction();
-        transaction1.setBook(transaction.getBook());
-        transaction1.setCard(transaction.getCard());
-        transaction1.setIssueOperation(false);
-        transaction1.setFineAmount(fine);
-        transaction1.setTransactionStatus(TransactionStatus.SUCCESSFUL);
+        //Remove that book from that card list
 
-        transactionRepository5.save(transaction1);
+        Transaction tr = new Transaction();
+        tr.setBook(transaction.getBook());
+        tr.setCard(transaction.getCard());
+        tr.setIssueOperation(false);
+        tr.setFineAmount(fine);
+        tr.setTransactionStatus(TransactionStatus.SUCCESSFUL);
 
-        return transaction1;
+        transactionRepository5.save(tr);
 
-        //return the transaction after updating all details
+        return tr;
+
     }
 }
